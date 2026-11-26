@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Calculadora de notas 1er semestre</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+/* Layout: pestañas por asignatura; arriba un panel de resultados fijo; debajo la lista de actividades del contrato agrupadas, cada una con casilla «corregida» y su nota */
+:root{
+  --bg:#f3f4f7; --paper:#fff; --ink:#1b2130; --muted:#5d6577; --line:#dfe2ea; --soft:#eef0f5;
+  --sub:#2f5bd3; --ok:#16834f; --warn:#b26a00; --bad:#c23b32;
+  --f-display:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif;
+  --f-body:"Source Sans 3","Segoe UI",system-ui,sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){--bg:#10141c;--paper:#181d28;--ink:#e7e9f0;--muted:#9aa2b5;--line:#2a3142;--soft:#1f2533;--ok:#4fd18f;--warn:#ffb547;--bad:#ff8a80;color-scheme:dark}
+}
+:root[data-theme="dark"]{--bg:#10141c;--paper:#181d28;--ink:#e7e9f0;--muted:#9aa2b5;--line:#2a3142;--soft:#1f2533;--ok:#4fd18f;--warn:#ffb547;--bad:#ff8a80;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.45}
+.wrap{max-width:900px;margin:0 auto;padding:0 16px 60px}
+header{padding:26px 0 8px}
+h1{font-family:var(--f-display);font-weight:800;font-size:clamp(26px,4.5vw,36px);margin:0 0 6px;text-wrap:balance}
+.lead{color:var(--muted);margin:0;max-width:70ch}
+.tabs{display:flex;flex-wrap:wrap;gap:6px;margin:16px 0 12px}
+.tabs button{font:inherit;font-weight:600;font-size:15px;border:1px solid var(--line);background:var(--paper);color:var(--ink);padding:7px 13px;border-radius:999px;cursor:pointer;display:inline-flex;gap:7px;align-items:center}
+.tabs button[aria-selected="true"]{background:var(--sub-c,var(--ink));border-color:var(--sub-c,var(--ink));color:#fff}
+.tabs .mini{font-variant-numeric:tabular-nums;font-size:13px;opacity:.85}
+button:focus-visible,input:focus-visible{outline:2px solid var(--sub-c,var(--sub));outline-offset:2px}
+.panel{position:sticky;top:0;z-index:5;background:var(--paper);border:1px solid var(--line);border-top:5px solid var(--sub-c);border-radius:12px;padding:14px 16px;display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:12px}
+.kpi .l{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+.kpi .v{font-family:var(--f-display);font-weight:800;font-size:28px;line-height:1.1;font-variant-numeric:tabular-nums}
+.kpi .h{font-size:13px;color:var(--muted)}
+.meter{grid-column:1/-1;height:12px;border-radius:99px;background:var(--soft);overflow:hidden;display:flex}
+.meter span{display:block;height:100%}
+.legend{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:6px 16px;font-size:13px;color:var(--muted)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.verdict{grid-column:1/-1;font-weight:600;padding:8px 12px;border-radius:8px;background:var(--soft)}
+.verdict.ok{color:var(--ok)} .verdict.warn{color:var(--warn)} .verdict.bad{color:var(--bad)}
+.quick{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:12px 16px;margin-bottom:12px;display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;font-size:15px}
+.quick label{font-weight:600}
+input[type=number]{font:inherit;font-variant-numeric:tabular-nums;width:76px;padding:5px 8px;border:1px solid var(--line);border-radius:8px;background:var(--paper);color:var(--ink)}
+input[type=number]:disabled{opacity:.35}
+.group{background:var(--paper);border:1px solid var(--line);border-radius:12px;margin-bottom:12px;overflow:hidden}
+.group h2{font-family:var(--f-display);font-size:16px;font-weight:600;margin:0;padding:10px 16px;background:var(--soft);display:flex;justify-content:space-between;gap:10px}
+.group h2 span{font-family:var(--f-body);font-size:13px;color:var(--muted);font-weight:600}
+.row{display:grid;grid-template-columns:28px 1fr 64px 92px;gap:10px;align-items:center;padding:8px 16px;border-top:1px solid var(--line)}
+.row:first-of-type{border-top:0}
+.row input[type=checkbox]{width:20px;height:20px;accent-color:var(--sub-c)}
+.row .name{font-weight:600}
+.row .note{font-size:13px;color:var(--muted);font-weight:400}
+.row .w{font-family:var(--f-display);font-weight:800;text-align:right;font-variant-numeric:tabular-nums}
+.row.done{background:color-mix(in srgb,var(--sub-c) 7%,transparent)}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+.actions button{font:inherit;font-size:14px;font-weight:600;border:1px solid var(--line);background:var(--paper);color:var(--ink);padding:6px 12px;border-radius:8px;cursor:pointer}
+.actions .sep{flex:1}
+#saved{font-size:13px;font-weight:600;color:var(--ok);align-self:center;transition:opacity .3s}
+#saved.err{color:var(--bad)}
+.foot{color:var(--muted);font-size:14px;margin-top:18px}
+.foot li{margin:4px 0;max-width:80ch}
+@media (max-width:640px){.panel{grid-template-columns:repeat(2,1fr)}.kpi .v{font-size:24px}.row{grid-template-columns:24px 1fr 52px 76px;padding:8px 12px;gap:8px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>Calculadora de notas</h1>
+  <p class="lead">Marca lo que ya te han corregido y escribe tu nota (sobre 10) en cada cosa. La calculadora suma cuánto porcentaje de la asignatura llevas, cuántos puntos tienes ya y qué media necesitas en lo que queda para aprobar. Los pesos vienen de los contratos.</p>
+</header>
+
+<div class="tabs" role="tablist" id="tabs"></div>
+
+<div class="panel" id="panel" aria-live="polite"></div>
+
+<div class="quick">
+  <label for="global">¿Solo sabes tu nota media de lo corregido?</label>
+  <input type="number" id="global" min="0" max="10" step="0.01" placeholder="0–10">
+  <span style="color:var(--muted);font-size:14px">Si la pones, se usa para todo lo marcado como corregido y se ignoran las notas sueltas.</span>
+</div>
+
+<div class="actions">
+  <button type="button" id="markAll">Marcar todo hasta hoy como corregido</button>
+  <button type="button" id="reset">Volver a lo que me dijiste (9/11)</button>
+  <span class="sep"></span>
+  <span id="saved" aria-live="polite"></span>
+  <button type="button" id="exportBtn">Exportar copia</button>
+  <button type="button" id="importBtn">Importar copia</button>
+  <input type="file" id="importFile" accept=".json,application/json" hidden>
+</div>
+
+<div id="list"></div>
+
+<ul class="foot">
+  <li>Tutorías, gestión de calidad, prácticum y algunos foros son Pass/Fail: si lo cumples, pon 10; si no, 0.</li>
+  <li>Robots Autónomos: los laboratorios suman 18 % según la tabla de evaluación (aquí 9 % cada uno, como dice el anexo; el calendario del contrato pone 6 %).</li>
+  <li>Ningún contrato pide nota mínima en parciales, así que la calculadora solo mira la media ponderada. Las recuperaciones (AE10) no están incluidas.</li>
+  <li>Todo lo que marques o escribas se guarda al instante en este navegador (también si cierras la pestaña). Si cambias de navegador, de ordenador o de dirección web, usa «Exportar copia» e «Importar copia» para llevarte tus datos.</li>
+</ul>
+</div>
+
+<script>
+const S = {
+ ARQ:{n:"Arquitectura de Software", c:"#2f5bd3", g:[
+  ["Pruebas parciales",[["arq_pp1","Prueba parcial 01","25/09",10],["arq_pp2","Prueba parcial 02","23/10",10],["arq_pp3","Prueba parcial 03","13/11",10],["arq_pp4","Prueba parcial 04","04/12",10]]],
+  ["Prácticas de laboratorio (portafolio)",[["arq_pl1","Práctica 01","25/09",10],["arq_pl2","Práctica 02","16/10",10],["arq_pl3","Práctica 03","13/11",10],["arq_pl4","Práctica 04","04/12",10]]],
+  ["Proyecto",[["arq_proy","Entrega y presentación del proyecto","11/12",10]]],
+  ["Foro",[["arq_f1","Post 01 · ágiles","S03",1],["arq_f2","Post 02 · AOS","S07",1],["arq_f3","Post 03 · DevOps","S10",1],["arq_f4","Post 04 · ciberseguridad","S12",1],["arq_f5","Post 05 · tecnología del proyecto","S13",1]]],
+  ["Participación (Pass/Fail)",[["arq_tut","Tutorías","fin",2],["arq_cal","Gestión de calidad (4 formularios)","fin",2],["arq_pra","Prácticum","fin",1]]]
+ ]},
+ TAY:{n:"TAyRE", c:"#c2410c", g:[
+  ["Pruebas parciales",[["tay_pp1","Prueba parcial 01","24/09",6],["tay_pp2","Prueba parcial 02","29/10",12],["tay_pp3","Prueba parcial 03","10/12",12]]],
+  ["Proyectos",[["tay_p1","Proyecto 01 · Producto RPA","05/11",8],["tay_p2","Proyecto 02 · Maqueta automatizada","10/12",20]]],
+  ["Prácticas Robots Industriales",[["tay_ri1","RI Práctica 01","08/10",4.5],["tay_ri2","RI Práctica 02","15/10",4.5],["tay_ri3","RI Práctica 03","22/10",4.5],["tay_ri4","RI Práctica 04","29/10",4.5]]],
+  ["Laboratorio IoT (portafolio)",[["tay_io1","IoT Práctica 01","26/11",4.5],["tay_io2","IoT Práctica 02","26/11",4.5],["tay_io3","IoT Práctica 03","03/12",4.5],["tay_io4","IoT Práctica 04","03/12",4.5]]],
+  ["Foro y participación",[["tay_foro","Foro (4 posts)","fin",1],["tay_tut","Tutorías","fin",2],["tay_cal","Gestión de calidad","fin",2],["tay_pra","Prácticum","fin",1]]]
+ ]},
+ AA:{n:"Aprendizaje Automático", c:"#7c3aed", g:[
+  ["Pruebas parciales",[["aa_pp1","PP1 · Unidades I y II","14/10",20],["aa_pp2","PP2 · Unidades III y IV","18/11",20]]],
+  ["Prácticas evaluadas (PLE)",[["aa_ple1","PLE1 · Auditoría de datos","16/09",5],["aa_ple2","PLE2 · Selección y evaluación","28/10",5],["aa_ple3","PLE3 · Refuerzo (entrega + defensa)","02/12",5]]],
+  ["Proyecto",[["aa_c1","Punto de control 1","28/10",2.5],["aa_c2","Punto de control 2","18/11",2.5],["aa_exp","Exposición del proyecto","09/12",20]]],
+  ["Exposición de paper",[["aa_paper","Exposición del paper","según turno",7]]],
+  ["Foros",[["aa_f1","Foro F1 · caso empresarial","30/09",1],["aa_f2","Foro F2 · ampliación técnica","04/11",1],["aa_f3","Foro F3 · sesgos y ética","09/12",1]]],
+  ["Participación",[["aa_pld","Prácticas diarias PLD (todas)","fin",5],["aa_tut","Tutorías","fin",2],["aa_cal","Gestión de calidad","fin",2],["aa_pra","Prácticum","fin",1]]]
+ ]},
+ CG:{n:"Computación Gráfica", c:"#0f8a6d", g:[
+  ["Pruebas parciales",[["cg_pp1","Prueba parcial 1","21/09",10],["cg_pp2","Prueba parcial 2","19/10",10],["cg_pp3","Prueba parcial 3","16/11",10],["cg_pp4","Prueba parcial 4","30/11",10]]],
+  ["Prácticas de laboratorio (portafolio)",[["cg_pl1","Práctica 1","14/09",5],["cg_pl2","Práctica 2","09/11",5],["cg_pl3","Práctica 3","30/11",5]]],
+  ["Cuestionarios y tarea",[["cg_q1","Cuestionario 01","07/09",1.5],["cg_q2","Cuestionario 02","28/09",1.5],["cg_q3","Cuestionario 03","05/10",1.5],["cg_q4","Cuestionario 04","26/10",1.5],["cg_q5","Cuestionario 05","02/11",1.5],["cg_q6","Cuestionario 06","23/11",1.5],["cg_t1","Tarea 1","12/10",5]]],
+  ["Proyecto",[["cg_mem","Memoria del proyecto","30/11",10],["cg_pres","Presentación del proyecto","07/12",5],["cg_def","Defensa individual","07/12",10]]],
+  ["Foro y participación",[["cg_foro","Foro (4 posts)","fin",1],["cg_tut","Tutorías","fin",2],["cg_cal","Gestión de calidad","fin",2],["cg_pra","Prácticum","fin",1]]]
+ ]},
+ RA:{n:"Robots Autónomos", c:"#b8336a", g:[
+  ["Pruebas parciales",[["ra_pp1","Prueba parcial I","22/09",9],["ra_pp2","Prueba parcial II","13/10",9],["ra_pp3","Prueba parcial III","10/11",9]]],
+  ["Tareas Robots Móviles",[["ra_t1","Tarea 01","29/09",6],["ra_t2","Tarea 02","06/10",6],["ra_t3","Tarea 03","20/10",6]]],
+  ["Laboratorios (portafolio)",[["ra_l1","Laboratorio 01","03/11",9],["ra_l2","Laboratorio 02","03/11",9]]],
+  ["Exposición y proyecto",[["ra_exp","Sesión organizada por estudiantes","17/11",11],["ra_demo","Demostración del proyecto","01/12",18],["ra_inf","Informe final del proyecto","08/12",2]]],
+  ["Foro y participación",[["ra_foro","Foro (5 posts)","fin",1],["ra_tut","Tutorías","fin",2],["ra_cal","Gestión de calidad","fin",2],["ra_pra","Prácticum","fin",1]]]
+ ]}
+};
+// Lo que me contaste el 9/11 como corregido
+const DEFAULT_DONE = ["arq_pp1","arq_pp2","arq_pl1","tay_pp1","tay_pp2","aa_pp1","aa_ple1","aa_c1","aa_f1","aa_f2","cg_pp1","cg_pp2","cg_pl1","cg_t1","cg_q1","cg_q2","cg_q3","ra_pp1","ra_pp2","ra_t1","ra_t2","ra_t3"];
+// Hasta el 9/11 incluido (para el botón «marcar todo hasta hoy»)
+const UNTIL_TODAY = ["arq_pp1","arq_pp2","arq_pl1","arq_pl2","arq_f1","arq_f2","arq_f3","tay_pp1","tay_pp2","tay_p1","tay_ri1","tay_ri2","tay_ri3","tay_ri4","aa_pp1","aa_ple1","aa_ple2","aa_c1","aa_f1","aa_f2","cg_pp1","cg_pp2","cg_pl1","cg_pl2","cg_q1","cg_q2","cg_q3","cg_q4","cg_q5","cg_t1","ra_pp1","ra_pp2","ra_t1","ra_t2","ra_t3","ra_l1","ra_l2"];
+
+const KEY = "calc_notas_v1";
+let st = {cur:"ARQ", done:{}, grade:{}, global:{}};
+function defaults(){ st.done = {}; DEFAULT_DONE.forEach(k=>st.done[k]=true); }
+try { const s = JSON.parse(localStorage.getItem(KEY)); if (s && s.done) st = Object.assign(st, s); else defaults(); } catch(e){ defaults(); }
+let savedT;
+function showSaved(ok){
+  const s=document.getElementById("saved"); if(!s) return;
+  s.className = ok ? "" : "err";
+  s.textContent = ok ? "✓ Guardado" : "No se pudo guardar en este navegador";
+  s.style.opacity=1; clearTimeout(savedT);
+  if(ok) savedT=setTimeout(()=>{s.style.opacity=0},1500);
+}
+function save(){
+  try { localStorage.setItem(KEY, JSON.stringify(st)); showSaved(true); }
+  catch(e){ showSaved(false); }
+}
+
+const fmt = (x,d=1) => (Math.round(x*Math.pow(10,d))/Math.pow(10,d)).toLocaleString("es-ES",{minimumFractionDigits:0,maximumFractionDigits:d});
+const items = k => S[k].g.flatMap(g=>g[1]);
+
+function calc(k){
+  const its = items(k), glob = st.global[k];
+  let ev=0, pts=0, graded=0, missing=0;
+  its.forEach(([id,,,w])=>{
+    if(!st.done[id]) return;
+    ev += w;
+    const g = (glob!=null && glob!=="") ? Number(glob) : (st.grade[id]!=null && st.grade[id]!=="" ? Number(st.grade[id]) : null);
+    if(g==null || isNaN(g)) { missing += w; return; }
+    pts += w*g/10; graded += w;
+  });
+  const rest = 100-ev;
+  const avg = graded>0 ? pts/graded*10 : null;      // media sobre lo corregido con nota
+  const need = rest>0 ? (50 - pts - 0) / rest * 10 : null; // media necesaria en lo que queda para 5
+  return {ev, pts, graded, missing, rest, avg, need};
+}
+
+function el(t,c,x){const e=document.createElement(t); if(c) e.className=c; if(x!=null) e.textContent=x; return e;}
+
+function renderTabs(){
+  const box = document.getElementById("tabs"); box.innerHTML="";
+  Object.entries(S).forEach(([k,v])=>{
+    const b = el("button"); b.type="button"; b.setAttribute("role","tab"); b.setAttribute("aria-selected", st.cur===k);
+    b.style.setProperty("--sub-c", v.c);
+    b.appendChild(document.createTextNode(v.n));
+    const r = calc(k); b.appendChild(el("span","mini", fmt(r.ev)+" %"));
+    b.addEventListener("click",()=>{ st.cur=k; save(); render(); });
+    box.appendChild(b);
+  });
+}
+
+function kpi(l,v,h){ const d=el("div","kpi"); d.appendChild(el("div","l",l)); d.appendChild(el("div","v",v)); if(h) d.appendChild(el("div","h",h)); return d; }
+
+function renderPanel(){
+  const k=st.cur, r=calc(k), p=document.getElementById("panel"); p.innerHTML="";
+  p.appendChild(kpi("Corregido", fmt(r.ev)+" %", "de la asignatura"));
+  p.appendChild(kpi("Puntos ganados", fmt(r.pts,2)+" / "+fmt(r.ev), "sobre 100 de la nota final"));
+  p.appendChild(kpi("Tu media ahora", r.avg==null ? "—" : fmt(r.avg,2), r.missing>0 ? "falta nota en "+fmt(r.missing)+" %" : "sobre 10, en lo corregido"));
+  p.appendChild(kpi("Necesitas en lo que queda", r.need==null ? "—" : (r.need<=0 ? "0" : fmt(r.need,2)), "media sobre 10 para llegar a un 5"));
+  const m = el("div","meter");
+  const a = el("span"); a.style.width = r.pts+"%"; a.style.background = S[k].c;
+  const b = el("span"); b.style.width = (r.ev-r.pts)+"%"; b.style.background = "color-mix(in srgb,"+S[k].c+" 30%, transparent)";
+  m.appendChild(a); m.appendChild(b); p.appendChild(m);
+  const lg = el("div","legend");
+  lg.innerHTML = '<span><i style="background:'+S[k].c+'"></i>Puntos ganados</span><span><i style="background:color-mix(in srgb,'+S[k].c+' 30%, transparent)"></i>Puntos perdidos en lo corregido</span><span><i style="background:var(--soft)"></i>Por corregir o por hacer</span>';
+  p.appendChild(lg);
+  const v = el("div","verdict");
+  if(r.ev===0) { v.textContent="Marca lo que ya te han corregido para ver cómo vas."; }
+  else if(r.missing>0 && r.graded===0) { v.textContent="Escribe tus notas de lo marcado (o tu media arriba) para calcular cómo vas."; }
+  else if(r.pts>=50) { v.classList.add("ok"); v.textContent="Ya tienes el 5 asegurado con lo corregido. Todo lo que queda suma para subir nota."; }
+  else if(r.need>10) { v.classList.add("bad"); v.textContent="Con lo que queda no llega para el 5 aunque saques un 10 en todo: tocará recuperar parciales (AE10)."; }
+  else {
+    const proj = r.avg!=null ? (r.pts + r.rest*r.avg/10)/10 : null;
+    v.classList.add(r.need<=5?"ok":r.need<=7?"warn":"bad");
+    v.textContent = "Te faltan "+fmt(50-r.pts,2)+" puntos para el 5: necesitas una media de "+fmt(Math.max(r.need,0),2)+" en el "+fmt(r.rest)+" % que queda." + (proj!=null ? " Si sigues con tu media actual, acabarías con un "+fmt(proj,2)+"." : "");
+  }
+  p.appendChild(v);
+}
+
+function renderList(){
+  const k=st.cur, box=document.getElementById("list"); box.innerHTML="";
+  document.documentElement.style.setProperty("--sub-c", S[k].c);
+  const gi = document.getElementById("global"); gi.value = st.global[k] ?? "";
+  const useGlob = st.global[k]!=null && st.global[k]!=="";
+  S[k].g.forEach(([title,its])=>{
+    const g = el("section","group");
+    const tot = its.reduce((s,i)=>s+i[3],0);
+    const h = el("h2",null,title); h.appendChild(el("span",null, fmt(tot)+" % en total")); g.appendChild(h);
+    its.forEach(([id,name,date,w])=>{
+      const row = el("div","row"+(st.done[id]?" done":""));
+      const cb = el("input"); cb.type="checkbox"; cb.id="c_"+id; cb.checked=!!st.done[id];
+      cb.setAttribute("aria-label","Corregida: "+name);
+      cb.addEventListener("change",()=>{ st.done[id]=cb.checked; save(); render(); });
+      const lab = el("label","name"); lab.htmlFor="c_"+id; lab.textContent=name;
+      const nm = el("div"); nm.appendChild(lab); nm.appendChild(el("div","note", date==="fin" ? "Se califica al final del semestre" : "Fecha: "+date));
+      const ww = el("div","w", fmt(w)+" %");
+      const inp = el("input"); inp.type="number"; inp.min=0; inp.max=10; inp.step="0.01"; inp.placeholder="nota"; inp.id="g_"+id;
+      inp.setAttribute("aria-label","Nota de "+name);
+      inp.value = st.grade[id] ?? ""; inp.disabled = !st.done[id] || useGlob;
+      inp.addEventListener("input",()=>{ let v=inp.value; if(v!=="" && (v<0||v>10)) return; st.grade[id]=v; save(); renderPanel(); renderTabs(); });
+      row.appendChild(cb); row.appendChild(nm); row.appendChild(ww); row.appendChild(inp);
+      g.appendChild(row);
+    });
+    box.appendChild(g);
+  });
+}
+
+function render(){ document.getElementById("panel").style.setProperty("--sub-c", S[st.cur].c); renderTabs(); renderPanel(); renderList(); }
+
+document.getElementById("global").addEventListener("input",e=>{ const v=e.target.value; st.global[st.cur]= v===""?null:v; save(); render(); document.getElementById("global").focus(); });
+document.getElementById("markAll").addEventListener("click",()=>{ UNTIL_TODAY.forEach(id=>st.done[id]=true); save(); render(); });
+document.getElementById("reset").addEventListener("click",()=>{ defaults(); save(); render(); });
+// Copia de seguridad
+document.getElementById("exportBtn").addEventListener("click",()=>{
+  const blob = new Blob([JSON.stringify(st,null,2)],{type:"application/json"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "notas-"+new Date().toISOString().slice(0,10)+".json";
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+});
+document.getElementById("importBtn").addEventListener("click",()=>document.getElementById("importFile").click());
+document.getElementById("importFile").addEventListener("change",e=>{
+  const f=e.target.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=()=>{
+    try{
+      const d=JSON.parse(r.result);
+      if(!d || typeof d.done!=="object") throw 0;
+      st = Object.assign({cur:"ARQ",done:{},grade:{},global:{}}, d);
+      if(!S[st.cur]) st.cur="ARQ";
+      save(); render();
+    }catch(_){ const s=document.getElementById("saved"); s.className="err"; s.style.opacity=1; s.textContent="Ese archivo no es una copia válida"; }
+    e.target.value="";
+  };
+  r.readAsText(f);
+});
+// Si tienes la calculadora abierta en dos pestañas, se mantienen sincronizadas
+window.addEventListener("storage",e=>{
+  if(e.key!==KEY || !e.newValue) return;
+  try{ st = Object.assign(st, JSON.parse(e.newValue)); render(); }catch(_){}
+});
+// Por si acaso, guarda también al cerrar o cambiar de pestaña
+window.addEventListener("pagehide",()=>{ try{localStorage.setItem(KEY, JSON.stringify(st));}catch(_){} });
+render();
+</script>
+</body>
+</html>
